@@ -6,9 +6,13 @@
 //  Copyright (c) 2015 Martin Kloepfel. All rights reserved.
 //
 
+#import "MAKFetchingItemListModel.h"
 #import "MAKBaseItemListModel-Protected.h"
 
+
 @interface MAKFetchingItemListModel ()
+
+@property (nonatomic, strong) MAKMultiDelegate<MAKFetchingItemListModelDelegate> *delegates;
 
 // redeklaration to get write permission for internal use
 @property (nonatomic, getter=isLoading) BOOL loading;

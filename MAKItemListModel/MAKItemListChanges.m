@@ -12,6 +12,57 @@
 
 #pragma mark - Public helper methods
 
+- (NSIndexSet *)indexSetOfAddedSections
+{
+    if (![self.addedSections isKindOfClass:[NSArray class]] || self.addedSections.count == 0)
+        return nil;
+    
+    NSMutableIndexSet *indexSet = [NSMutableIndexSet new];
+    
+    for (MAKSectionChange *sectionChange in self.addedSections)
+    {
+        if (sectionChange.toIndex != NSNotFound)
+            [indexSet addIndex:sectionChange.toIndex];
+    }
+    
+    return indexSet.count ? indexSet : nil;
+}
+
+- (NSIndexSet *)indexSetOfUpdatedSections
+{
+    if (![self.updatedSections isKindOfClass:[NSArray class]] || self.updatedSections.count == 0)
+        return nil;
+    
+    NSMutableIndexSet *indexSet = [NSMutableIndexSet new];
+    
+    for (MAKSectionChange *sectionChange in self.updatedSections)
+    {
+        if (sectionChange.fromIndex != NSNotFound)
+            [indexSet addIndex:sectionChange.fromIndex];
+        else if (sectionChange.toIndex != NSNotFound)
+            [indexSet addIndex:sectionChange.toIndex];
+    }
+    
+    return indexSet.count ? indexSet : nil;
+}
+
+- (NSIndexSet *)indexSetOfRemovedSections
+{
+    if (![self.removedSections isKindOfClass:[NSArray class]] || self.removedSections.count == 0)
+        return nil;
+    
+    NSMutableIndexSet *indexSet = [NSMutableIndexSet new];
+    
+    for (MAKSectionChange *sectionChange in self.removedSections)
+    {
+        if (sectionChange.fromIndex != NSNotFound)
+            [indexSet addIndex:sectionChange.fromIndex];
+    }
+    
+    return indexSet.count ? indexSet : nil;
+}
+
+
 - (NSArray *)indexPathsOfAddedItems
 {
     if (![self.addedItems isKindOfClass:[NSArray class]] || self.addedItems.count == 0)
@@ -63,6 +114,36 @@
 }
 
 #pragma mark - Class methods
+
++ (MAKItemListChanges *)itemListChangesWithAddedSections:(NSArray *)addedSections
+{
+    if (addedSections && ![addedSections isKindOfClass:[NSArray class]])
+        return nil;
+    
+    MAKItemListChanges *itemListChanges = [MAKItemListChanges new];
+    itemListChanges.addedSections = addedSections;
+    return itemListChanges;
+}
+
++ (MAKItemListChanges *)itemListChangesWithUpdatedSections:(NSArray *)updatedSections
+{
+    if (updatedSections && ![updatedSections isKindOfClass:[NSArray class]])
+        return nil;
+    
+    MAKItemListChanges *itemListChanges = [MAKItemListChanges new];
+    itemListChanges.updatedSections = updatedSections;
+    return itemListChanges;
+}
+
++ (MAKItemListChanges *)itemListChangesWithRemovedSections:(NSArray *)removedSections
+{
+    if (removedSections && ![removedSections isKindOfClass:[NSArray class]])
+        return nil;
+    
+    MAKItemListChanges *itemListChanges = [MAKItemListChanges new];
+    itemListChanges.removedSections = removedSections;
+    return itemListChanges;
+}
 
 + (MAKItemListChanges *)itemListChangesWithAddedItems:(NSArray *)addedItems
 {

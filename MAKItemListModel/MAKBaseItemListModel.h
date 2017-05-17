@@ -31,11 +31,11 @@ extern const NSUInteger MAKUnlimitedSelection;
  @param model The model.
  @param changes // TODO:
  */
-- (void)modelDidUpdateItems:(MAKBaseItemListModel *)model changes:(MAKItemListChanges *)changes;
+- (void)itemListModel:(MAKBaseItemListModel *)itemListModel didUpdateItemsWithChanges:(MAKItemListChanges *)changes;
 
 
-- (BOOL)model:(MAKBaseItemListModel *)model canSelect:(NSArray *)indexPaths;
-- (void)model:(MAKBaseItemListModel *)model didChangeSelectionStateAtIndexPaths:(NSArray *)indexPaths;
+- (BOOL)itemListModel:(MAKBaseItemListModel *)itemListModel canSelect:(NSArray *)indexPaths;
+- (void)itemListModel:(MAKBaseItemListModel *)itemListModel didChangeSelectionStateAtIndexPaths:(NSArray *)indexPaths;
 
 @end
 
@@ -45,9 +45,12 @@ extern const NSUInteger MAKUnlimitedSelection;
 /** Register as delegate to get informed about current items updates, selection state, etc.
  @see MAKItemListModelDelegate
  */
-@property (nonatomic, weak) id<MAKBaseItemListModelDelegate> delegate;
+- (void)addDelegate:(id<MAKBaseItemListModelDelegate>)delegate;
 
-@property (nonatomic, readonly) BOOL canRemoveItems;
+- (void)removeDelegate:(id)delegate;
+
+- (void)removeAllDelegates;
+
 
 @property (nonatomic, readonly) NSUInteger numberOfSelectableItems;
 
@@ -112,11 +115,11 @@ extern const NSUInteger MAKUnlimitedSelection;
  */
 - (BOOL)setSelectionState:(BOOL)selected forItem:(id)item;
 
-/** Toogle the selection state of a specified item.
+/** Toggle the selection state of a specified item.
  @param The item.
  @return The new selection state.
  */
-- (BOOL)toogleSelectionStateForItem:(id)item;
+- (BOOL)toggleSelectionStateForItem:(id)item;
 
 /** Select a bunch of items.
  @param items An array of items to select.

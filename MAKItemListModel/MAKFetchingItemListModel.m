@@ -6,7 +6,6 @@
 //  Copyright (c) 2015 Martin Kloepfel. All rights reserved.
 //
 
-#import "MAKFetchingItemListModel.h"
 #import "MAKFetchingItemListModel-Protected.h"
 
 #import "NSMutableArray+Helper.h"
@@ -17,17 +16,6 @@
 - (void) dealloc
 {
     [self cancelRequest];
-}
-
-#pragma mark - Initializers
-
-- (id)init
-{
-    if (self = [super init])
-    {
-        self.loadingItems = [NSMutableArray new];
-    }
-    return self;
 }
 
 
@@ -55,8 +43,8 @@
         BOOL changed = [self.loadingItems addObject:item allowDuplicates:NO];
         
         if (changed)
-            if ([self.delegate respondsToSelector:@selector(model:didChangeLoadingStateAtIndexPaths:)])
-                [self.delegate model:self didChangeLoadingStateAtIndexPaths:@[[self indexPathOfItem:item]]];
+            if ([self.delegates respondsToSelector:@selector(itemListModel:didChangeLoadingStateAtIndexPaths:)])
+                [self.delegates itemListModel:self didChangeLoadingStateAtIndexPaths:@[[self indexPathOfItem:item]]];
         
         return changed;
     }
@@ -66,8 +54,10 @@
         {
             [self.loadingItems removeObject:item];
             
-            if ([self.delegate respondsToSelector:@selector(model:didChangeLoadingStateAtIndexPaths:)])
-                [self.delegate model:self didChangeLoadingStateAtIndexPaths:@[[self indexPathOfItem:item]]];
+            NSIndexPath *indexPath = [self indexPathOfItem:item];
+            
+            if (indexPath && [self.delegates respondsToSelector:@selector(itemListModel:didChangeLoadingStateAtIndexPaths:)])
+                [self.delegates itemListModel:self didChangeLoadingStateAtIndexPaths:@[indexPath]];
             
             return YES;
         }
@@ -107,6 +97,7 @@
 
 
 #pragma mark - Item editing
+#pragma mark - Remove items
 
 - (void)removeItem:(id)item completion:(void (^)(BOOL success))completionBlock
 {
@@ -120,6 +111,96 @@
     BOOL success = [super removeItemAtIndexPath:indexPath];
     
     if (completionBlock) completionBlock(success);
+}
+
+#pragma mark - Remove items (overridden methods)
+
+- (BOOL)removeItemAtIndexPath:(NSIndexPath *)indexPath notifyDelegate:(BOOL)notifyDelegate
+{
+    id item = [self itemAtIndexPath:indexPath];
+    
+    BOOL success = [super removeItemAtIndexPath:indexPath notifyDelegate:notifyDelegate];
+    
+    if (success)
+    {
+        if ([_loadingItems containsObject:item])
+            [_loadingItems removeObject:item];
+    }
+    
+    return success;
+}
+
+- (BOOL)removeAllItemsInSection:(NSUInteger)sectionIndex notifyDelegate:(BOOL)notifyDelegate
+{
+    NSMutableArray *section = [self sectionAtIndex:sectionIndex];
+    
+    BOOL success = [super removeAllItemsInSection:sectionIndex notifyDelegate:notifyDelegate];
+    
+    if (success)
+    {
+        for (id item in section)
+        {
+            if ([_loadingItems containsObject:item])
+                [_loadingItems removeObject:item];
+        }
+    }
+    
+    return success;
+}
+
+- (BOOL)removeSectionAtIndex:(NSUInteger)index notifyDelegate:(BOOL)notifyDelegate
+{
+   NSMutableArray *section = self.sections[index];
+    
+    BOOL success = [super removeSectionAtIndex:index notifyDelegate:notifyDelegate];
+    
+    if (success)
+    {
+        for (id item in section)
+        {
+            if ([_loadingItems containsObject:item])
+                [_loadingItems removeObject:item];
+        }
+    }
+    
+    return success;
+}
+
+- (BOOL)removeAllSectionsAndNotifyDelegate:(BOOL)notifyDelegate
+{
+    BOOL success = [super removeAllSectionsAndNotifyDelegate:notifyDelegate];
+    if (success)
+        [_loadingItems removeAllObjects];
+}
+
+
+#pragma mark - Private Setter
+
+- (void)setLoading:(BOOL)loading
+{
+    BOOL loadingStateDidChange = self.isLoading != loading;
+    
+    _loading = loading;
+    
+    if (loadingStateDidChange)
+    {
+        if (loading && [self.delegates respondsToSelector:@selector(itemListModelDidStartLoading:)])
+            [self.delegates itemListModelDidStartLoading:self];
+        else if (!loading && [self.delegates respondsToSelector:@selector(itemListModelDidStopLoading:)])
+            [self.delegates itemListModelDidStopLoading:self];
+    }
+}
+
+
+#pragma mark - Getter / Lazy instantiation
+
+- (NSMutableArray *)loadingItems
+{
+    if (!_loadingItems)
+    {
+        _loadingItems = [NSMutableArray new];
+    }
+    return _loadingItems;
 }
 
 @end

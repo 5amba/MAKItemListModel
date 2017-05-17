@@ -27,23 +27,20 @@ typedef NS_ENUM(NSUInteger, MAKLoadingType)
 /** The model did start loading.
  @param model The model.
  */
-- (void)modelDidStartLoading:(MAKFetchingItemListModel *)model;
+- (void)itemListModelDidStartLoading:(MAKFetchingItemListModel *)itemListModel;
 
-/** The model did finisch loading.
+/** The model did stop loading.
  @param model The model.
- @param anythingChanged A Boolean value indicating whether anything has changed in the item list.
  */
-- (void)modelDidFinishLoading:(MAKFetchingItemListModel *)model anythingChanged:(BOOL)anythingChanged;
+- (void)itemListModelDidStopLoading:(MAKFetchingItemListModel *)itemListModel;
 
-/** The loading did fail with an error.
+/** Something did fail with error.
  @param model The model.
  @param error The specified error.
  */
-- (void)model:(MAKFetchingItemListModel*)model loadingDidFailWithError:(NSError *)error;
+- (void)itemListModel:(MAKFetchingItemListModel *)itemListModel didFailWithError:(NSError *)error;
 
-- (void)model:(MAKFetchingItemListModel *)model didChangeLoadingStateAtIndexPaths:(NSArray *)indexPaths;
-
-- (void)model:(MAKFetchingItemListModel *)model didChangeLoadingStateAtIndexPaths:(NSArray *)indexPaths;
+- (void)itemListModel:(MAKFetchingItemListModel *)itemListModel didChangeLoadingStateAtIndexPaths:(NSArray *)indexPaths;
 
 @end
 
@@ -53,7 +50,8 @@ typedef NS_ENUM(NSUInteger, MAKLoadingType)
 /** Register as delegate to get informed about current loading state, errors, etc.
  @see MAKFetchingItemListModelDelegate
  */
-@property (nonatomic, weak) id<MAKFetchingItemListModelDelegate> delegate;
+- (void)addDelegate:(id<MAKFetchingItemListModelDelegate>)delegate;
+
 
 /// A Boolean value indicating whether the model is currently in loading state
 @property (nonatomic, readonly, getter=isLoading) BOOL loading;
@@ -63,6 +61,8 @@ typedef NS_ENUM(NSUInteger, MAKLoadingType)
 @property (nonatomic, readonly) BOOL moreItemsAvailable;
 
 @property (nonatomic, readonly) BOOL dataInitialized;
+
+@property (nonatomic, readonly) BOOL canRemoveItems;
 
 
 #pragma mark - Loading additional information

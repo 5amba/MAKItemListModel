@@ -6,7 +6,6 @@
 //  Copyright (c) 2015 Martin Kloepfel. All rights reserved.
 //
 
-#import "MAKBaseItemListModel.h"
 #import "MAKBaseItemListModel-Protected.h"
 
 #import "NSMutableArray+Helper.h"
@@ -17,17 +16,20 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
 
 @implementation MAKBaseItemListModel
 
-#pragma mark - Initializers
-
-- (id)init
+- (void)addDelegate:(id<MAKBaseItemListModelDelegate>)delegate
 {
-    if (self = [super init])
-    {
-        self.sections = [NSMutableArray new];
-    }
-    return self;
+    [self.delegates addDelegate:delegate];
 }
 
+- (void)removeDelegate:(id<MAKBaseItemListModelDelegate>)delegate
+{
+    [self.delegates removeDelegate:delegate];
+}
+
+- (void)removeAllDelegates
+{
+    [self.delegates removeAllDelegates];
+}
 
 #pragma mark - Item access
 
@@ -67,6 +69,9 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
 
 - (id)itemAtIndexPath:(NSIndexPath *)indexPath
 {
+    if (![indexPath isKindOfClass:[NSIndexPath class]])
+        return nil; // TODO: exeption?
+    
     NSMutableArray *sectionArray = [self sectionAtIndex:indexPath.section];
     
     if (indexPath.item < sectionArray.count)
@@ -114,8 +119,8 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
         BOOL changed = [self.selectedItems addObject:item allowDuplicates:NO];
         
         if (changed)
-            if ([self.delegate respondsToSelector:@selector(model:didChangeLoadingStateAtIndexPaths:)])
-                [self.delegate model:self didChangeSelectionStateAtIndexPaths:@[[self indexPathOfItem:item]]];
+            if ([self.delegates respondsToSelector:@selector(itemListModel:didChangeLoadingStateAtIndexPaths:)])
+                [self.delegates itemListModel:self didChangeSelectionStateAtIndexPaths:@[[self indexPathOfItem:item]]];
         
         return changed;
     }
@@ -125,8 +130,8 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
         {
             [self.selectedItems removeObject:item];
             
-            if ([self.delegate respondsToSelector:@selector(model:didChangeLoadingStateAtIndexPaths:)])
-                [self.delegate model:self didChangeSelectionStateAtIndexPaths:@[[self indexPathOfItem:item]]];
+            if ([self.delegates respondsToSelector:@selector(itemListModel:didChangeLoadingStateAtIndexPaths:)])
+                [self.delegates itemListModel:self didChangeSelectionStateAtIndexPaths:@[[self indexPathOfItem:item]]];
             
             return YES;
         }
@@ -137,14 +142,14 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
     }
 }
 
-- (BOOL)toogleSelectionStateForItem:(id)item
+- (BOOL)toggleSelectionStateForItem:(id)item
 {
     if ([self.selectedItems containsObject:item])
     {
         [self.selectedItems removeObject:item];
         
-        if ([self.delegate respondsToSelector:@selector(model:didChangeLoadingStateAtIndexPaths:)])
-            [self.delegate model:self didChangeSelectionStateAtIndexPaths:@[[self indexPathOfItem:item]]];
+        if ([self.delegates respondsToSelector:@selector(itemListModel:didChangeLoadingStateAtIndexPaths:)])
+            [self.delegates itemListModel:self didChangeSelectionStateAtIndexPaths:@[[self indexPathOfItem:item]]];
         
         return NO;
     }
@@ -152,8 +157,8 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
     {
         [self.selectedItems addObject:item];
         
-        if ([self.delegate respondsToSelector:@selector(model:didChangeLoadingStateAtIndexPaths:)])
-            [self.delegate model:self didChangeSelectionStateAtIndexPaths:@[[self indexPathOfItem:item]]];
+        if ([self.delegates respondsToSelector:@selector(itemListModel:didChangeLoadingStateAtIndexPaths:)])
+            [self.delegates itemListModel:self didChangeSelectionStateAtIndexPaths:@[[self indexPathOfItem:item]]];
         
         return YES;
     }
@@ -161,7 +166,7 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
 
 - (void)selectItems:(NSArray *)items
 {
-    NSMutableArray* indexPaths = [NSMutableIndexSet new];
+    NSMutableArray* indexPaths = [NSMutableArray new];
     for (id item in items)
     {
         if (![self.selectedItems containsObject:item])
@@ -173,8 +178,8 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
         }
     }
     
-    if ([self.delegate respondsToSelector:@selector(model:didChangeLoadingStateAtIndexPaths:)])
-        [self.delegate model:self didChangeSelectionStateAtIndexPaths:[NSArray arrayWithArray:indexPaths]];
+    if ([self.delegates respondsToSelector:@selector(itemListModel:didChangeLoadingStateAtIndexPaths:)])
+        [self.delegates itemListModel:self didChangeSelectionStateAtIndexPaths:[NSArray arrayWithArray:indexPaths]];
 }
 
 - (void)deselectAllItems
@@ -184,7 +189,7 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
 
 - (void)deselectItems:(NSArray *)items
 {
-    NSMutableArray* indexPaths = [NSMutableIndexSet new];
+    NSMutableArray* indexPaths = [NSMutableArray new];
     for (id item in items)
     {
         if ([self.selectedItems containsObject:item])
@@ -196,8 +201,8 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
         }
     }
     
-    if ([self.delegate respondsToSelector:@selector(dataListModel:selectionChangedAtIndexes:)])
-        [self.delegate model:self didChangeSelectionStateAtIndexPaths:[NSArray arrayWithArray:indexPaths]];
+    if ([self.delegates respondsToSelector:@selector(itemListModel:selectionChangedAtIndexes:)])
+        [self.delegates itemListModel:self didChangeSelectionStateAtIndexPaths:[NSArray arrayWithArray:indexPaths]];
 }
 
 
@@ -211,22 +216,154 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
 }
 
 #pragma mark - Item editing
+#pragma mark - Add items
 
-
-- (void)addSectionWithItems:(NSArray *)items
+- (BOOL)addSectionWithItems:(NSArray *)items
 {
-    if (!items)
-        [self.sections addObject:[NSMutableArray new]];
+    if (!items || ![items isKindOfClass:[NSArray class]] || items.count == 0)
+        return NO; //TODO: exeption?
     
-    if (![items isKindOfClass:[NSArray class]])
-    {
-        //TODO: throw exeption
-        return;
-    }
-    
-    [self.sections addObject:[NSMutableArray arrayWithArray:items]];
+    [self addSection:[NSMutableArray arrayWithArray:items]];
 }
 
+- (BOOL)addSection:(NSMutableArray *)section
+{
+    if (!section || ![section isKindOfClass:[NSMutableArray class]])
+        return NO; //TODO: exeption?
+    
+    [self addSection:section notifyDelegate:YES];
+}
+
+- (BOOL)addSection:(NSMutableArray *)section notifyDelegate:(BOOL)notifyDelegate
+{
+    if (!section || ![section isKindOfClass:[NSMutableArray class]])
+        return NO; //TODO: exeption?
+
+    [self addSections:@[section] notifyDelegate:notifyDelegate];
+}
+
+- (BOOL)addSections:(NSArray *)sections
+{
+    if (!sections || ![sections isKindOfClass:[NSArray class]] || sections.count == 0)
+        return NO; //TODO: exeption?
+    
+    [self addSections:sections notifyDelegate:YES];
+}
+
+- (BOOL)addSections:(NSArray *)sections notifyDelegate:(BOOL)notifyDelegate
+{
+    if (!sections || ![sections isKindOfClass:[NSArray class]] || sections.count == 0)
+        return NO; //TODO: exeption?
+    
+    NSMutableArray *sectionChanges = [NSMutableArray new];
+    
+    for (NSMutableArray *section in sections)
+    {
+        if (![section isKindOfClass:[NSMutableArray class]])
+            return NO; //TODO: exeption?
+        [sectionChanges addObject:[MAKSectionChange sectionChangeWithSection:sections fromIndex:NSNotFound toIndex:self.sections.count]];
+        [self.sections addObject:section];
+    }
+    
+    if (notifyDelegate && sectionChanges.count && [self.delegates respondsToSelector:@selector(itemListModel:didUpdateItemsWithChanges:)])
+        [self.delegates itemListModel:self didUpdateItemsWithChanges:[MAKItemListChanges itemListChangesWithAddedSections:[NSArray arrayWithArray:sectionChanges]]];
+    
+    return YES;
+}
+
+- (BOOL)insertSection:(NSMutableArray *)section atIndex:(NSUInteger)index
+{
+    return [self insertSection:section atIndex:index notifyDelegate:YES];
+}
+
+- (BOOL)insertSection:(NSMutableArray *)section atIndex:(NSUInteger)index notifyDelegate:(BOOL)notifyDelegate
+{
+    if (!section || ![section isKindOfClass:[NSMutableArray class]])
+        return NO; //TODO: exeption?
+    
+    if (index < 0 || index > self.sections.count)
+        return NO; //TODO: exeption?
+    
+    [self.sections insertObject:section atIndex:index];
+    
+    if (notifyDelegate && [self.delegates respondsToSelector:@selector(itemListModel:didUpdateItemsWithChanges:)])
+    {
+        MAKSectionChange *sectionChange = [MAKSectionChange sectionChangeWithSection:section fromIndex:NSNotFound toIndex:index];
+        [self.delegates itemListModel:self didUpdateItemsWithChanges:[MAKItemListChanges itemListChangesWithAddedSections:@[sectionChange]]];
+    }
+    
+    return YES;
+}
+
+- (BOOL)addItem:(id)item toSection:(NSUInteger)sectionIndex
+{
+    return [self addItem:item toSection:sectionIndex notifyDelegate:YES];
+}
+
+- (BOOL)addItem:(id)item toSection:(NSUInteger)sectionIndex notifyDelegate:(BOOL)notifyDelegate
+{
+    return [self addItems:@[item] toSection:sectionIndex notifyDelegate:notifyDelegate];
+}
+
+- (BOOL)addItems:(NSArray *)items toSection:(NSUInteger)sectionIndex
+{
+    return [self addItems:items toSection:sectionIndex notifyDelegate:YES];
+}
+
+- (BOOL)addItems:(NSArray *)items toSection:(NSUInteger)sectionIndex notifyDelegate:(BOOL)notifyDelegate
+{
+    if (!items || ![items isKindOfClass:[NSArray class]] || items.count == 0)
+        return NO; //TODO: exeption?
+    
+    NSMutableArray *section = [self sectionAtIndex:sectionIndex];
+    if (!section)
+        return NO; //TODO: exeption?
+
+    NSMutableArray *itemChanges = [NSMutableArray new];
+    
+    for (id item in items)
+    {
+        NSIndexPath *indexPath = [NSIndexPath indexPathForRow:section.count inSection:sectionIndex];
+        [itemChanges addObject:[MAKItemChange itemChangeWithItem:item fromIndexPath:nil toIndexPath:indexPath]];
+        [section addObject:item];
+    }
+    
+    if (notifyDelegate && itemChanges.count && [self.delegates respondsToSelector:@selector(itemListModel:didUpdateItemsWithChanges:)])
+        [self.delegates itemListModel:self didUpdateItemsWithChanges:[MAKItemListChanges itemListChangesWithAddedItems:[NSArray arrayWithArray:itemChanges]]];
+    
+    return YES;
+}
+
+- (BOOL)insertItem:(id)item atIndexPath:(NSIndexPath *)indexPath
+{
+    return [self insertItem:item atIndexPath:indexPath notifyDelegate:YES];
+}
+
+- (BOOL)insertItem:(id)item atIndexPath:(NSIndexPath *)indexPath notifyDelegate:(BOOL)notifyDelegate
+{
+    if (!item)
+        return NO; //TODO: exeption?
+    
+    NSMutableArray *section = [self sectionAtIndex:indexPath.section];
+    if (!section)
+        return NO; //TODO: exeption?
+    
+    if (indexPath.row < 0 || indexPath.row > section.count)
+        return NO; //TODO: exeption?
+    
+    [section insertObject:item atIndex:indexPath.row];
+    
+    if (notifyDelegate && [self.delegates respondsToSelector:@selector(itemListModel:didUpdateItemsWithChanges:)])
+    {
+        MAKItemChange *itemChange = [MAKItemChange itemChangeWithItem:item fromIndexPath:nil toIndexPath:indexPath];
+        [self.delegates itemListModel:self didUpdateItemsWithChanges:[MAKItemListChanges itemListChangesWithAddedItems:@[itemChange]]];
+    }
+    
+    return YES;
+}
+
+
+#pragma mark - Remove items
 
 - (BOOL)removeItem:(id)item
 {
@@ -253,14 +390,130 @@ const NSUInteger MAKUnlimitedSelection = NSUIntegerMax;
     NSMutableArray *section = [self sectionAtIndex:indexPath.section];
     [section removeObjectAtIndex:indexPath.row];
     
-    if (notifyDelegate && [self.delegate respondsToSelector:@selector(modelDidUpdateItems:changes:)])
+    if ([_selectedItems containsObject:item])
+        [_selectedItems removeObject:item];
+    
+    if (notifyDelegate && [self.delegates respondsToSelector:@selector(itemListModel:didUpdateItemsWithChanges:)])
     {
         MAKItemChange *itemChange = [MAKItemChange itemChangeWithItem:item fromIndexPath:indexPath toIndexPath:nil];
-        [self.delegate modelDidUpdateItems:self changes:[MAKItemListChanges itemListChangesWithRemovedItems:@[itemChange]]];
+        [self.delegates itemListModel:self didUpdateItemsWithChanges:[MAKItemListChanges itemListChangesWithRemovedItems:@[itemChange]]];
     }
     
     return YES;
 }
+
+- (BOOL)removeAllItemsInSection:(NSUInteger)sectionIndex
+{
+    return [self removeAllItemsInSection:sectionIndex notifyDelegate:YES];
+}
+
+- (BOOL)removeAllItemsInSection:(NSUInteger)sectionIndex notifyDelegate:(BOOL)notifyDelegate
+{
+    NSMutableArray *section = [self sectionAtIndex:sectionIndex];
+    if (!section || section.count == 0)
+        return NO;
+    
+    NSMutableArray *itemChanges = [NSMutableArray new];
+    for (NSInteger i = 0; i<section.count; i++)
+    {
+        id item = section[i];
+        MAKItemChange *itemChange = [MAKItemChange itemChangeWithItem:item fromIndexPath:[NSIndexPath indexPathForRow:i inSection:sectionIndex] toIndexPath:nil];
+        [itemChanges addObject:itemChange];
+        
+        if ([_selectedItems containsObject:item])
+            [_selectedItems removeObject:item];
+    }
+    
+    [section removeAllObjects];
+    
+    if (notifyDelegate && itemChanges.count && [self.delegates respondsToSelector:@selector(itemListModel:didUpdateItemsWithChanges:)])
+        [self.delegates itemListModel:self didUpdateItemsWithChanges:[MAKItemListChanges itemListChangesWithRemovedItems:[NSArray arrayWithArray:itemChanges]]];
+    
+    return YES;
+}
+
+- (BOOL)removeSectionAtIndex:(NSUInteger)index
+{
+    return [self removeSectionAtIndex:index notifyDelegate:YES];
+}
+
+- (BOOL)removeSectionAtIndex:(NSUInteger)index notifyDelegate:(BOOL)notifyDelegate
+{
+    if (self.sections.count == 0 && index < self.sections.count)
+        return NO;
+    
+    NSMutableArray *section = self.sections[index];
+    for (id item in section)
+    {
+        if ([_selectedItems containsObject:item])
+            [_selectedItems removeObject:item];
+    }
+    
+    MAKSectionChange *sectionChange = [MAKSectionChange sectionChangeWithSection:[self itemsOfSection:index] fromIndex:index toIndex:NSNotFound];
+    [self.sections removeObjectAtIndex:index];
+    
+    if (notifyDelegate && [self.delegates respondsToSelector:@selector(itemListModel:didUpdateItemsWithChanges:)])
+        [self.delegates itemListModel:self didUpdateItemsWithChanges:[MAKItemListChanges itemListChangesWithRemovedSections:@[sectionChange]]];
+    
+    return YES;
+}
+
+- (BOOL)removeAllSections
+{
+    return [self removeAllSectionsAndNotifyDelegate:YES];
+}
+
+- (BOOL)removeAllSectionsAndNotifyDelegate:(BOOL)notifyDelegate
+{
+    if (self.sections.count == 0)
+        return NO;
+    
+    NSMutableArray *sectionChanges = [NSMutableArray new];
+    for (NSInteger i = 0; i<self.sections.count; i++)
+    {
+        MAKSectionChange *sectionChange = [MAKSectionChange sectionChangeWithSection:self.sections[i] fromIndex:i toIndex:NSNotFound];
+        [sectionChanges addObject:sectionChange];
+    }
+    
+    [self.sections removeAllObjects];
+    [_selectedItems removeAllObjects];
+    
+    if (notifyDelegate && sectionChanges.count && [self.delegates respondsToSelector:@selector(itemListModel:didUpdateItemsWithChanges:)])
+        [self.delegates itemListModel:self didUpdateItemsWithChanges:[MAKItemListChanges itemListChangesWithRemovedSections:[NSArray arrayWithArray:sectionChanges]]];
+    
+    return YES;
+}
+
+
+#pragma mark - Getter / Lazy instantiation
+
+- (MAKMultiDelegate *)delegates
+{
+    if (!_delegates)
+    {
+        _delegates = [MAKMultiDelegate new];
+    }
+    return _delegates;
+}
+
+- (NSMutableArray *)sections
+{
+    if (!_sections)
+    {
+        _sections = [NSMutableArray new];
+    }
+    return _sections;
+}
+
+- (NSMutableArray *)selectedItems
+{
+    if (!_selectedItems)
+    {
+        _selectedItems = [NSMutableArray new];
+    }
+    return _selectedItems;
+}
+
 
 
 
